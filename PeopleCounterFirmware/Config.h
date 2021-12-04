@@ -10,6 +10,6 @@
 #define STAPSK  "zul12345"
 
 /***   Debugging Mode   ***/
-#define DEBUG_COUNTER
+//#define DEBUG_COUNTER
 
 #endif
