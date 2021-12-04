@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define DEFAULT_PEOPLE_LIMIT 5
+#define DEFAULT_PEOPLE_LIMIT 3
 //#define MOUNTED_INSIDE
 
 /***   WiFi   ***/

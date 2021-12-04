@@ -2,12 +2,18 @@
 #include "SparkFun_VL53L1X.h"
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
+
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+ESP8266WebServer server(80);
 //#include <LiquidCrystal.h>
 //LiquidCrystal lcd(D3,D4,D5,D6,D7,D8);
 void setup_wifi();
 void zones_calibration();
 void zones_calibration_boot();
 void processPeopleCountingData(int16_t Distance, uint8_t zone);
+void handleRoot();
+
 
 const char* ssid = "biasalahhh";     //wi-fi netwrok name
 const char* password = "zul12345";  //wi-fi network password
@@ -25,6 +31,7 @@ static bool advised_orientation_of_the_sensor = true;
 static bool save_calibration_result = false;
 
 #define EEPROM_SIZE 8
+#define DEFAULT_PEOPLE_LIMIT 3
 
 SFEVL53L1X distanceSensor(Wire);//, SHUTDOWN_PIN, INTERRUPT_PIN);
 
@@ -72,11 +79,17 @@ void setup(void)
   Serial.println("Ready");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  
+  server.begin();
+  Serial.print("HTTP server started");
 }
 
 
 void loop(void)
 {
+  server.handleClient();
   uint16_t distance;
   distanceSensor.setROI(ROI_height, ROI_width, center[Zone]);  // first value: height of the zone, second value: width of the zone
   delay(52);
@@ -167,11 +180,11 @@ void processPeopleCountingData(int16_t Distance, uint8_t zone) {
         // check exit or entry. no need to check PathTrack[0] == 0 , it is always the case
         Serial.println();
         if ((PathTrack[1] == 1)  && (PathTrack[2] == 3) && (PathTrack[3] == 2)) {
-          //////////////////////////////-ENTRY-//////////////////////////////////
-          PplCounter++;
-        } else if ((PathTrack[1] == 2)  && (PathTrack[2] == 3) && (PathTrack[3] == 1)) {
-          //////////////////////////////-EXIT-///////////////////////////////////
+          //////////////////////////////-EXIT-//////////////////////////////////
           PplCounter--;
+        } else if ((PathTrack[1] == 2)  && (PathTrack[2] == 3) && (PathTrack[3] == 1)) {
+          //////////////////////////////-ENTRY-///////////////////////////////////
+          PplCounter++;
           }
       }
       for (int i=0; i<4; i++){
@@ -375,4 +388,20 @@ void setup_wifi()
     Serial.print(".");
 //    WiFi.begin(ssid, password);
   }
+}
+
+
+//-----------------------------------
+//functions executing client requests
+//-----------------------------------
+void handleRoot()
+{
+  //server.send(200, "text/html", "<h1>ESP8266 Controller<br>Potentiometer: /pot<br>Button: /button<br>LED: /led</h1>");
+  //String msg = String("Number Of People: ") + String(PplCounter) + "\n";
+  String msg = String(PplCounter) + "\n";
+  msg = "<html><head><style>body{font-size: 500px;text-align: center;}</style></head><meta http-equiv=\"refresh\" content=\"0.1\"> <body bgcolor=\"#ffffff\">"
+            + msg + "</body></html>";
+
+  server.send(200, "text/html", msg);
+
 }
