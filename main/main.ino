@@ -100,7 +100,8 @@ static bool advised_orientation_of_the_sensor = true;
 static bool save_calibration_result = false;
 
 #define EEPROM_SIZE 8
-#define DEFAULT_PEOPLE_LIMIT 3
+#define PEOPLE_LIMIT 3
+#define BUZZER D0
 
 SFEVL53L1X distanceSensor(Wire);//, SHUTDOWN_PIN, INTERRUPT_PIN);
 
@@ -127,6 +128,7 @@ static int ROI_width = 0;
 
 void setup(void)
 {
+  pinMode(BUZZER,OUTPUT);
   //lcd.begin(16, 2);
   Wire.begin();
   // initialize the EEPROM memory
@@ -175,6 +177,10 @@ void loop(void)
   Serial.println(PplCounter);
   String value = (String)PplCounter;
   webSocket.broadcastTXT(value);
+  if (PplCounter>PEOPLE_LIMIT)
+    digitalWrite(BUZZER,HIGH);
+  else
+    digitalWrite(BUZZER,LOW);
   // lcd.setCursor(0,0);
   // lcd.print("Number of users");
   // lcd.setCursor(0,1);
