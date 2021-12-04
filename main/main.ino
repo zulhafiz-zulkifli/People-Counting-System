@@ -5,7 +5,76 @@
 
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <WebSocketsServer.h>
+#include <Hash.h>
 ESP8266WebServer server(80);
+WebSocketsServer webSocket = WebSocketsServer(81);
+
+char html_template[] PROGMEM = R"=====(
+<html lang="en">
+   <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>PEOPLE COUNTING SYSTEM</title>
+      <script>
+        socket = new WebSocket("ws:/" + "/" + location.host + ":81");
+        socket.onopen = function(e) {  console.log("[socket] socket.onopen "); };
+        socket.onerror = function(e) {  console.log("[socket] socket.onerror "); };
+        socket.onmessage = function(e) {  
+            console.log("[socket] " + e.data);
+            document.getElementById("counter_id").innerHTML = e.data;
+        };
+      </script>
+   </head>
+   <body style="max-width:400px;margin: auto;font-family:Arial, Helvetica, sans-serif;text-align:center">
+      <div><h1><br />Number of People:</h1></div>
+      <div><p id="counter_id" style="font-size:300px;margin:0"></p></div>
+   </body>
+</html>
+)=====";
+
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+
+  switch (type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("[%u] Disconnected!\n", num);
+      break;
+
+    case WStype_CONNECTED: {
+        IPAddress ip = webSocket.remoteIP(num);
+        Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+        // send message to client
+        webSocket.sendTXT(num, "0");
+      }
+      break;
+
+    case WStype_TEXT:
+      Serial.printf("[%u] get Text: %s\n", num, payload);
+      // send message to client
+      // webSocket.sendTXT(num, "message here");
+      // send data to all connected clients
+      // webSocket.broadcastTXT("message here");
+      break;
+      
+    case WStype_BIN:
+      Serial.printf("[%u] get binary length: %u\n", num, length);
+      hexdump(payload, length);
+      // send message to client
+      // webSocket.sendBIN(num, payload, length);
+      break;
+  }
+
+}
+
+void handleMain() {
+  server.send_P(200, "text/html", html_template ); 
+}
+void handleNotFound() {
+  server.send(404,   "text/html", "<html><body><p>404 Error</p></body></html>" );
+}
+
+
 //#include <LiquidCrystal.h>
 //LiquidCrystal lcd(D3,D4,D5,D6,D7,D8);
 void setup_wifi();
@@ -80,8 +149,11 @@ void setup(void)
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  server.on("/", handleRoot);
-  
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+
+  server.on("/", handleMain);
+  server.onNotFound(handleNotFound);
   server.begin();
   Serial.print("HTTP server started");
 }
@@ -89,6 +161,7 @@ void setup(void)
 
 void loop(void)
 {
+  webSocket.loop();
   server.handleClient();
   uint16_t distance;
   distanceSensor.setROI(ROI_height, ROI_width, center[Zone]);  // first value: height of the zone, second value: width of the zone
@@ -100,6 +173,8 @@ void loop(void)
 
   //PRINT NUMBER OF PEOPLE INSIDE/OUTSIDE
   Serial.println(PplCounter);
+  String value = (String)PplCounter;
+  webSocket.broadcastTXT(value);
   // lcd.setCursor(0,0);
   // lcd.print("Number of users");
   // lcd.setCursor(0,1);
@@ -391,17 +466,3 @@ void setup_wifi()
 }
 
 
-//-----------------------------------
-//functions executing client requests
-//-----------------------------------
-void handleRoot()
-{
-  //server.send(200, "text/html", "<h1>ESP8266 Controller<br>Potentiometer: /pot<br>Button: /button<br>LED: /led</h1>");
-  //String msg = String("Number Of People: ") + String(PplCounter) + "\n";
-  String msg = String(PplCounter) + "\n";
-  msg = "<html><head><style>body{font-size: 500px;text-align: center;}</style></head><meta http-equiv=\"refresh\" content=\"0.1\"> <body bgcolor=\"#ffffff\">"
-            + msg + "</body></html>";
-
-  server.send(200, "text/html", msg);
-
-}
