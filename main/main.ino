@@ -52,7 +52,7 @@ const char* ssid = "biasalahhh";     //wi-fi netwrok name
 const char* password = "zul12345";  //wi-fi network password
 const int threshold_percentage = 80;
 // this value has to be true if the sensor is oriented as in Duthdeffy's picture
-static bool advised_orientation_of_the_sensor = true;
+static bool advised_orientation_of_the_sensor = false;
 // this value has to be true if you don't need to compute the threshold every time the device is turned on
 static bool save_calibration_result = false;
 static int NOBODY = 0;
