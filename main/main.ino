@@ -6,7 +6,8 @@
 #include <ESP8266WebServer.h>
 #include <WebSocketsServer.h>
 #include <Hash.h>
-//#include <LiquidCrystal.h>
+#include <LiquidCrystal.h>
+
 #define EEPROM_SIZE 8
 #define PEOPLE_LIMIT 3
 #define BUZZER D0
@@ -14,7 +15,7 @@
 SFEVL53L1X distanceSensor(Wire);
 ESP8266WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
-//LiquidCrystal lcd(D3,D4,D5,D6,D7,D8);
+LiquidCrystal lcd(D3,D4,D5,D6,D7,D8);
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 void handleMain();
@@ -48,13 +49,11 @@ char html_template[] PROGMEM = R"=====(
 </html>
 )=====";
 
-const char* ssid = "biasalahhh";     //wi-fi netwrok name
-const char* password = "zul12345";  //wi-fi network password
+const char* ssid = "biasalahhh";     // wi-fi networkk name
+const char* password = "zul12345";  // wi-fi network password
 const int threshold_percentage = 80;
-// this value has to be true if the sensor is oriented as in Duthdeffy's picture
-static bool advised_orientation_of_the_sensor = false;
-// this value has to be true if you don't need to compute the threshold every time the device is turned on
-static bool save_calibration_result = false;
+static bool side_orientation = false; //true if sensor on side, false if sensor on top
+static bool save_calibration_result = false; //true if you don't need to compute the threshold every time the device is turned on
 static int NOBODY = 0;
 static int SOMEONE = 1;
 static int LEFT = 0;
@@ -62,10 +61,10 @@ static int RIGHT = 1;
 static int DIST_THRESHOLD_MAX[] = {0, 0};   // treshold of the two zones
 static int MIN_DISTANCE[] = {0, 0};
 static int PathTrack[] = {0,0,0,0};
-static int PathTrackFillingSize = 1; // init this to 1 as we start from state where nobody is any of the zones
+static int PathTrackFillingSize = 1; // init this to 1 as we start from state where nobody is in either zones
 static int LeftPreviousStatus = NOBODY;
 static int RightPreviousStatus = NOBODY;
-static int center[2] = {0,0}; /* center of the two zones */  
+static int center[2] = {0,0}; // center of the two zones   
 static int Zone = 0;
 static int PplCounter = 0;
 static int ROI_height = 0;
@@ -73,10 +72,11 @@ static int ROI_width = 0;
 
 void setup(){
   pinMode(BUZZER,OUTPUT);
-  //lcd.begin(16, 2);
+  lcd.begin(16, 2);
+  lcd.print("No. of People:");
   Wire.begin();
   EEPROM.begin(EEPROM_SIZE);// initialize the EEPROM memory
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   if(distanceSensor.init() == false) Serial.println("Sensor online!");
   distanceSensor.setIntermeasurementPeriod(50);
@@ -116,17 +116,19 @@ void loop(){
   distanceSensor.stopRanging();
 
   //PRINT NUMBER OF PEOPLE INSIDE/OUTSIDE
-  Serial.println(PplCounter);
-  String value = (String)PplCounter;
+  //currentPplCounter = PplCounter<0?0:PplCounter;
+  currentPplCounter = PplCounter;
+  Serial.println(currentPplCounter);
+  String value = (String)currentPplCounter;
   webSocket.broadcastTXT(value);
-  if(PplCounter>PEOPLE_LIMIT)
+  if(currentPplCounter>PEOPLE_LIMIT)
     digitalWrite(BUZZER,HIGH);
   else
     digitalWrite(BUZZER,LOW);
-  // lcd.setCursor(0,0);
-  // lcd.print("Number of users");
-  // lcd.setCursor(0,1);
-  // lcd.print(PplCounter);
+  lcd.setCursor(0,1);
+  lcd.print("               ");//clear 2nd row
+  lcd.setCursor(7,1);
+  lcd.print(currentPplCounter);
 
    // inject the new ranged distance in the people counting algorithm
   processPeopleCountingData(distance, Zone);
@@ -294,7 +296,7 @@ void zones_calibration(){
   int ROI_size = min(8, max(4, function_of_the_distance));
   ROI_width = ROI_size;
   ROI_height = ROI_size;
-  if(advised_orientation_of_the_sensor){
+  if(side_orientation){
     switch(ROI_size){
         case 4:
           center[0] = 150;
