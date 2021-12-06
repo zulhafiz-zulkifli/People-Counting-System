@@ -116,19 +116,24 @@ void loop(){
   distanceSensor.stopRanging();
 
   //PRINT NUMBER OF PEOPLE INSIDE/OUTSIDE
-  //currentPplCounter = PplCounter<0?0:PplCounter;
-  currentPplCounter = PplCounter;
-  Serial.println(currentPplCounter);
-  String value = (String)currentPplCounter;
+  PplCounter = PplCounter<0?0:PplCounter;// counter wont go less than 0
+  //PplCounter = PplCounter;
+  //SERIAL MONITOR
+  Serial.println(PplCounter);
+  //WEB INTERFACE
+  String value = (String)PplCounter;
   webSocket.broadcastTXT(value);
-  if(currentPplCounter>PEOPLE_LIMIT)
-    digitalWrite(BUZZER,HIGH);
-  else
-    digitalWrite(BUZZER,LOW);
+  //LCD DISPLAY
   lcd.setCursor(0,1);
   lcd.print("               ");//clear 2nd row
   lcd.setCursor(7,1);
-  lcd.print(currentPplCounter);
+  lcd.print(PplCounter);
+  //BUZZER SIGNAL
+  if(PplCounter>PEOPLE_LIMIT)
+    digitalWrite(BUZZER,HIGH);
+  else
+    digitalWrite(BUZZER,LOW);
+
 
    // inject the new ranged distance in the people counting algorithm
   processPeopleCountingData(distance, Zone);
@@ -203,11 +208,11 @@ void processPeopleCountingData(int16_t Distance, uint8_t zone){
         Serial.println();
         if((PathTrack[1] == 1)  && (PathTrack[2] == 3) && (PathTrack[3] == 2)){
           //////////////////////////////-EXIT-//////////////////////////////////
-          PplCounter--;
+          PplCounter++;
         }
         else if((PathTrack[1] == 2)  && (PathTrack[2] == 3) && (PathTrack[3] == 1)){
           //////////////////////////////-ENTRY-///////////////////////////////////
-          PplCounter++;
+          PplCounter--;
         }
       }
       for(int i=0; i<4; i++){
